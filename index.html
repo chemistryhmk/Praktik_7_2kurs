@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Симулятор: Метали побічних підгруп у зварюванні</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Exo+2:wght@300;400;600;700&display=swap');
+        body { font-family: 'Exo 2', sans-serif; background: #0b0f19; color: #f1f5f9; }
+        .glass { background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(12px); border: 1px solid rgba(251, 191, 36, 0.15); }
+        .progress-bar { transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+        .hidden-screen { display: none; }
+        input[type="text"]:focus { outline: 2px solid #fbbf24; box-shadow: 0 0 10px rgba(251, 191, 36, 0.3); }
+        .chain-box { border-left: 4px solid #f59e0b; padding-left: 1.25rem; background: rgba(245, 158, 11, 0.03); }
+    </style>
+</head>
+<body class="p-4 md:p-8 min-h-screen flex items-center justify-center">
+
+    <div id="app" class="max-w-4xl w-full glass rounded-2xl shadow-2xl overflow-hidden border border-slate-700/50">
+        <!-- Header -->
+        <div class="bg-gradient-to-r from-slate-900 to-slate-800 p-6 border-b border-amber-500/20 flex justify-between items-center">
+            <div>
+                <h1 class="text-xl font-bold text-amber-400 uppercase tracking-wider">Welding Metallurgy Lab v4.0</h1>
+                <p id="sub-header" class="text-xs text-slate-400">Спеціальність: 131 Прикладна механіка</p>
+            </div>
+            <div id="timer-display" class="text-2xl font-mono text-amber-500 font-bold hidden">00:00</div>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="h-1 w-full bg-slate-800">
+            <div id="progress" class="h-full bg-amber-500 progress-bar" style="width: 0%"></div>
+        </div>
+
+        <!-- Content Area -->
+        <div class="p-6 md:p-8">
+            
+            <!-- SCREEN 1: Login -->
+            <div id="screen-login" class="space-y-6">
+                <div class="text-center">
+                    <h1 class="text-2xl font-semibold text-slate-400 mb-1">Практична робота № 7</h1>
+                    <h2 class="text-3xl font-extrabold text-amber-400 mb-6 tracking-tight">Тема: "Складання рівнянь реакцій для металів побічних підгруп. Розрахункові задачі."</h2>
+                    <p class="text-slate-400 max-w-xl mx-auto">
+                        Ця робота присвячена хімії перехідних металів ($Fe, Cr, Mn, Ni, W, Ti, Cu$), які формують основу сучасних конструкційних матеріалів, зварювальних дротів та легуючих комплексів.
+                    </p>
+                </div>
+                <div class="grid grid-cols-1 gap-4 max-w-md mx-auto pt-4">
+                    <div>
+                        <label class="block text-xs text-slate-400 uppercase tracking-wider mb-2">Прізвище та Ім'я студента</label>
+                        <input type="text" id="studentName" placeholder="Наприклад, Петренко Іван" class="w-full p-4 bg-slate-950 border border-slate-800 rounded-lg text-white">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-400 uppercase tracking-wider mb-2">Академічна група</label>
+                        <input type="text" id="studentGroup" placeholder="Наприклад, ЗВ-23" class="w-full p-4 bg-slate-950 border border-slate-800 rounded-lg text-white">
+                    </div>
+                    <button onclick="startSession()" class="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold py-4 rounded-lg transition-all transform hover:scale-[1.02] uppercase tracking-widest text-sm mt-2">
+                        Отримати індивідуальний варіант
+                    </button>
+                </div>
+            </div>
+
+            <!-- SCREEN 2: Quiz -->
+            <div id="screen-quiz" class="hidden-screen space-y-6">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-xl font-semibold text-amber-400">Блок 1: Властивості d-металів у зварюванні</h3>
+                    <span id="quiz-counter" class="text-sm font-bold bg-slate-800 border border-slate-700 px-4 py-1.5 rounded-full">Питання 1/12</span>
+                </div>
+                <div id="quiz-content" class="bg-slate-900/40 p-6 rounded-xl border border-white/5">
+                    <!-- Dynamic Content -->
+                </div>
+            </div>
+
+            <!-- SCREEN 3: Reaction Chains -->
+            <div id="screen-chains" class="hidden-screen space-y-6">
+                <h3 class="text-xl font-semibold text-amber-400">Блок 2: Ланцюги хімічних перетворень (Металургія сплавів)</h3>
+                <p class="text-sm text-slate-400 mb-4">Визначте хімічні формули проміжних речовин ($X_1, X_2$). Записуйте формули без пробілів, враховуючи регістр літер (наприклад, CuSO4, Fe(OH)2, FeCl2).</p>
+                <div class="space-y-6" id="chain-list">
+                    <!-- Chains injected here -->
+                </div>
+                <button onclick="checkChains()" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 py-3.5 rounded-lg font-bold transition-colors">ПЕРЕВІРИТИ ЛАНЦЮГИ</button>
+            </div>
+
+            <!-- SCREEN 4: Chemical Equations -->
+            <div id="screen-equations" class="hidden-screen space-y-6">
+                <h3 class="text-xl font-semibold text-amber-400">Блок 3: Рівняння реакцій (Окиснення, легування та захист)</h3>
+                <p class="text-sm text-slate-400">Допишіть продукты хімічних реакцій (праву частину рівняння) у молекулярній формі. Записуйте формули без пробілів (наприклад, 2FeCl3+3H2O або Al2O3+2Cr). Якщо утворюється декілька продуктів, використовуйте знак "+" як роздільник.</p>
+                <div class="space-y-4" id="eq-list">
+                    <!-- Equations injected here -->
+                </div>
+                <button onclick="checkEquations()" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 py-3.5 rounded-lg font-bold transition-colors">ПЕРЕВІРИТИ РІВНЯННЯ</button>
+            </div>
+
+            <!-- SCREEN 5: Problems -->
+            <div id="screen-problems" class="hidden-screen space-y-6">
+                <h3 class="text-xl font-semibold text-amber-400">Блок 4: Технологічні розрахунки</h3>
+                <div id="problem-content" class="space-y-6">
+                    <!-- Problems injected here -->
+                </div>
+                <button onclick="finishSession()" class="w-full bg-green-600 hover:bg-green-700 text-white py-4 rounded-lg font-bold text-lg transition-all">ЗАВЕРШИТИ РОБОТУ ТА ЗГЕНЕРУВАТИ ЗВІТ</button>
+            </div>
+
+            <!-- SCREEN 6: Results -->
+            <div id="screen-results" class="hidden-screen text-center space-y-6">
+                <h2 class="text-4xl font-extrabold text-amber-500">ПРАКТИЧНУ РОБОТУ ЗАВЕРШЕНО</h2>
+                <div id="final-report" class="glass p-8 rounded-2xl border border-amber-500/30 inline-block text-left min-w-[340px]">
+                    <!-- Report details -->
+                </div>
+                <div class="flex justify-center gap-4">
+                    <button onclick="generatePrintableReport()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors flex items-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                        Згенерувати офіційний PDF/Звіт
+                    </button>
+                    <button onclick="location.reload()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-6 py-3 rounded-lg font-semibold transition-colors">Спробувати знову</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        let state = {
+            name: '',
+            group: '',
+            startTime: null,
+            timerInterval: null,
+            currentQuizIdx: 0,
+            score: 0,
+            finalGrade: 0,
+            timeSpent: '',
+            maxScore: 60,
+            details: {
+                quizCorrect: 0,
+                chainsCorrect: 0,
+                eqCorrect: 0,
+                probCorrect: 0
+            }
+        };
+
+        const quizData = [
+            { q: "Який легуючий перехідний метал забезпечує стійкість нержавіючих сталей до міжкристалітної корозії, зв'язуючи вуглець у міцні карбіди?", a: ["Хром (Cr)", "Нікель (Ni)", "Титан (Ti)"], correct: 2 },
+            { q: "Який метал побічної підгрупи використовується для виготовлення неплавких електродів для аргонодугового зварювання (TIG)?", a: ["Мідь (Cu)", "Вольфрам (W)", "Залізо (Fe)"], correct: 1 },
+            { q: "Який елемент є основним легуючим металом для отримання латуні в парі з міддю?", a: ["Цинк (Zn)", "Хром (Cr)", "Нікель (Ni)"], correct: 0 },
+            { q: "Вміст якого металу визначає приналежність сплаву до класу 'бронза' (крім латунних сумішей)?", a: ["Мідь (Cu) як основа", "Залізо (Fe)", "Титан (Ti)"], correct: 0 },
+            { q: "Який перехідний метал додають у зварювальні дроти для зв'язування шкідливої сірки у тугоплавкі сульфіди з метою запобігання утворенню гарячих тріщин?", a: ["Кобальт (Co)", "Марганець (Mn)", "Хром (Cr)"], correct: 1 },
+            { q: "Який оксид формує щільну захисну плівку на поверхні легованих хромистих сталей, роблячи їх корозійностійкими?", a: ["Cr2O3", "Fe2O3", "NiO"], correct: 0 },
+            { q: "Основною складовою частиною звичайної іржі на поверхні сталевих зварних конструкцій є:", a: ["FeCl3", "Fe2O3 * nH2O або Fe(OH)3", "FeO"], correct: 1 },
+            { q: "Який метал має найвищу електро- та теплопровідність серед перехідних елементів, що критично для контактних наконечників зварювальних напівавтоматів?", a: ["Нікель (Ni)", "Мідь (Cu)", "Алюміній (Al)"], correct: 1 },
+            { q: "Яка електронна родина (орбіталь) заповнюється у металів побічних підгруп (d-елементів)?", a: ["p-орбіталь", "s-орбіталь", "d-орбіталь"], correct: 2 },
+            { q: "Який перехідний метал використовується як покриття для гальванічного оцинкування сталей з метою їх протекторного антикорозійного захисту?", a: ["Хром (Cr)", "Нікель (Ni)", "Цинк (Zn)"], correct: 2 },
+            { q: "При температурі вище 1000°С хром активно взаємодіє з киснем повітря. Яка валентність хрому в його найстійкішому зеленому оксиді?", a: ["II", "III", "VI"], correct: 1 },
+            { q: "Який метал є основою аустенітного класу нержавіючих сталей разом із хромом (забезпечує стабільність структури аустеніту)?", a: ["Нікель (Ni)", "Цинк (Zn)", "Мідь (Cu)"], correct: 0 }
+        ];
+
+        const chainsData = [
+            { 
+                display: "Fe (сталь) → X1 (хлоридне pickling-середовище) → Fe(OH)2 → X2 → Fe2O3 (окалина)", 
+                inputs: ["X1", "X2"], 
+                answers: ["FeCl2", "Fe(OH)3"],
+                points: 10 
+            },
+            { 
+                display: "Cu (зварювальний наконечник) → CuO → CuSO4 → X1 → CuO", 
+                inputs: ["X1"], 
+                answers: ["Cu(OH)2"], 
+                points: 10 
+            }
+        ];
+
+        const eqData = [
+            { left: "Cr2O3 + 2Al → Al2O3 + ", correct: ["2Cr", "2Cr+Al2O3", "Al2O3+2Cr"], displayRight: "2Cr", points: 3 },
+            { left: "2Cu + O2 (t°) → ", correct: ["2CuO"], displayRight: "2CuO", points: 3 },
+            { left: "Fe2O3 + 6HCl → 3H2O + ", correct: ["2FeCl3", "2FeCl3+3H2O", "3H2O+2FeCl3"], displayRight: "2FeCl3", points: 3 },
+            { left: "MnO + SiO2 (в зварювальному флюсі) → ", correct: ["MnSiO3"], displayRight: "MnSiO3", points: 3 }
+        ];
+
+        const problemData = [
+            { q: "Для легування зварного шва хромом до розплаву металу додали 300 г ферохрому, який містить 70% хрому за масою. Обчисліть масу чистого хрому (г), що безпосередньо потрапила в зону зварювання.", hint: "Порахуйте 70% від маси 300 г ферохрому.", correct: "210", points: 6 },
+            { q: "Для повного травлення оксиду заліза (іржі) масою 160 г (приймемо її за чистий Fe2O3) використали хлоридну кислоту. Обчисліть теоретичну масу солі FeCl3 (г), яка утвориться в результаті хімічної реакції: Fe2O3 + 6HCl = 2FeCl3 + 3H2O.", hint: "M(Fe2O3) = 160 г/моль, M(FeCl3) = 162.5 г/моль. З 1 моль Fe2O3 утворюється 2 моль FeCl3.", correct: "325", points: 7 }
+        ];
+
+        function startSession() {
+            state.name = document.getElementById('studentName').value.trim();
+            state.group = document.getElementById('studentGroup').value.trim();
+            if (!state.name || !state.group) return alert("Будь ласка, вкажіть прізвище та академічну групу!");
+
+            document.getElementById('screen-login').classList.add('hidden-screen');
+            document.getElementById('screen-quiz').classList.remove('hidden-screen');
+            document.getElementById('timer-display').classList.remove('hidden');
+            
+            state.startTime = new Date();
+            state.timerInterval = setInterval(updateTimer, 1000);
+            renderQuiz();
+            updateProgress(5);
+        }
+
+        function updateTimer() {
+            const diff = Math.floor((new Date() - state.startTime) / 1000);
+            const m = Math.floor(diff / 60).toString().padStart(2, '0');
+            const s = (diff % 60).toString().padStart(2, '0');
+            state.timeSpent = `${m}:${s}`;
+            document.getElementById('timer-display').innerText = state.timeSpent;
+        }
+
+        function renderQuiz() {
+            const q = quizData[state.currentQuizIdx];
+            let html = `<p class="text-lg md:text-xl mb-6 font-medium text-slate-200 leading-relaxed">${q.q}</p><div class="grid grid-cols-1 gap-3">`;
+            q.a.forEach((opt, i) => {
+                html += `<button onclick="handleQuiz(${i})" class="text-left p-4 bg-slate-800/80 hover:bg-amber-500/10 border border-slate-700/60 rounded-xl transition-all hover:border-amber-500/50 hover:translate-x-1">${opt}</button>`;
+            });
+            html += `</div>`;
+            document.getElementById('quiz-content').innerHTML = html;
+            document.getElementById('quiz-counter').innerText = `Питання ${state.currentQuizIdx + 1}/${quizData.length}`;
+        }
+
+        function handleQuiz(choice) {
+            if (choice === quizData[state.currentQuizIdx].correct) {
+                state.score += 2; // Each quiz is 2 points -> 24 points max
+                state.details.quizCorrect++;
+            }
+            state.currentQuizIdx++;
+            if (state.currentQuizIdx < quizData.length) {
+                renderQuiz();
+                updateProgress(5 + (state.currentQuizIdx * 2.5));
+            } else {
+                showChains();
+            }
+        }
+
+        function showChains() {
+            document.getElementById('screen-quiz').classList.add('hidden-screen');
+            document.getElementById('screen-chains').classList.remove('hidden-screen');
+            let html = "";
+            chainsData.forEach((c, i) => {
+                html += `<div class="bg-slate-900/40 p-6 rounded-xl border border-white/5 chain-box mb-4">
+                    <p class="text-lg font-mono text-amber-300 mb-4">${c.display}</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">`;
+                c.inputs.forEach((input, j) => {
+                    html += `<div>
+                        <label class="text-xs text-slate-500 uppercase tracking-wider block mb-1">Речовина ${input}:</label>
+                        <input type="text" id="chain-${i}-${j}" class="w-full bg-slate-950 border border-slate-800 p-3 rounded-lg text-amber-400 font-mono text-lg" placeholder="Наприклад, FeCl2">
+                    </div>`;
+                });
+                html += `</div></div>`;
+            });
+            document.getElementById('chain-list').innerHTML = html;
+            updateProgress(40);
+        }
+
+        function checkChains() {
+            chainsData.forEach((c, i) => {
+                let allCorrect = true;
+                c.inputs.forEach((input, j) => {
+                    const val = document.getElementById(`chain-${i}-${j}`).value.trim().replace(/\s+/g, '');
+                    if (val.toLowerCase() !== c.answers[j].toLowerCase()) {
+                        allCorrect = false;
+                    }
+                });
+                if (allCorrect) {
+                    state.score += c.points; // 20 points max
+                    state.details.chainsCorrect++;
+                }
+            });
+            showEquations();
+        }
+
+        function showEquations() {
+            document.getElementById('screen-chains').classList.add('hidden-screen');
+            document.getElementById('screen-equations').classList.remove('hidden-screen');
+            let html = "";
+            eqData.forEach((eq, i) => {
+                html += `<div class="flex flex-col md:flex-row items-start md:items-center gap-3 bg-slate-800/30 p-4 rounded-xl border border-slate-700/50 mb-3">
+                    <span class="font-mono text-lg text-slate-300 whitespace-nowrap">${eq.left}</span>
+                    <input type="text" id="eq-${i}" class="bg-slate-950 border border-amber-500/20 p-3 rounded-lg w-full md:w-80 text-amber-400 font-mono text-lg" placeholder="Продукти">
+                </div>`;
+            });
+            document.getElementById('eq-list').innerHTML = html;
+            updateProgress(75);
+        }
+
+        function checkEquations() {
+            eqData.forEach((eq, i) => {
+                const val = document.getElementById(`eq-${i}`).value.trim().replace(/\s+/g, '').toLowerCase();
+                let isMatch = false;
+                eq.correct.forEach(ans => {
+                    if (val === ans.replace(/\s+/g, '').toLowerCase()) {
+                        isMatch = true;
+                    }
+                });
+                if (isMatch) {
+                    state.score += eq.points; // 12 points max
+                    state.details.eqCorrect++;
+                }
+            });
+            showProblems();
+        }
+
+        function showProblems() {
+            document.getElementById('screen-equations').classList.add('hidden-screen');
+            document.getElementById('screen-problems').classList.remove('hidden-screen');
+            let html = "";
+            problemData.forEach((p, i) => {
+                html += `<div class="bg-slate-800/40 p-6 rounded-xl border border-white/5 space-y-4 mb-4">
+                    <p class="font-semibold text-lg text-amber-200">${p.q}</p>
+                    <p class="text-xs text-slate-500 italic bg-slate-950 p-3 rounded-lg border border-slate-800">Алгоритмічна порада: ${p.hint}</p>
+                    <input type="text" id="prob-${i}" class="bg-slate-950 border border-slate-800 p-4 rounded-lg w-full text-2xl text-center text-amber-500 font-bold" placeholder="Введіть отримане число">
+                </div>`;
+            });
+            document.getElementById('problem-content').innerHTML = html;
+            updateProgress(90);
+        }
+
+        function finishSession() {
+            problemData.forEach((p, i) => {
+                const val = document.getElementById(`prob-${i}`).value.trim().replace(',', '.');
+                if (val === p.correct) {
+                    state.score += p.points; // 13 points max
+                    state.details.probCorrect++;
+                }
+            });
+
+            clearInterval(state.timerInterval);
+            // Max score: 24 (Quiz) + 20 (Chains) + 12 (Equations) + 13 (Problems) = 69
+            state.finalGrade = Math.min(12, Math.round((state.score / 69) * 12));
+            if (state.score > 0 && state.finalGrade === 0) state.finalGrade = 1;
+
+            document.getElementById('screen-problems').classList.add('hidden-screen');
+            document.getElementById('screen-results').classList.remove('hidden-screen');
+            updateProgress(100);
+
+            document.getElementById('final-report').innerHTML = `
+                <div class="space-y-4 text-slate-200">
+                    <p><span class="text-slate-400">Студент:</span> <span class="font-bold text-white text-lg">${state.name}</span></p>
+                    <p><span class="text-slate-400">Група:</span> <span class="font-bold text-white">${state.group}</span></p>
+                    <p><span class="text-slate-400">Час роботи:</span> <span class="font-bold text-amber-400 text-lg">${state.timeSpent} хв</span></p>
+                    <div class="h-px bg-slate-700/60 my-4"></div>
+                    <div class="text-center">
+                        <p class="text-xs uppercase tracking-widest text-slate-400 font-semibold">Оцінка за роботу</p>
+                        <p class="text-7xl font-black text-amber-500 my-2 tracking-tight">${state.finalGrade}</p>
+                        <p class="text-sm text-slate-500">Система оцінювання: 12-бальна</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        function updateProgress(val) {
+            document.getElementById('progress').style.width = val + '%';
+        }
+
+        function generatePrintableReport() {
+            const printWindow = window.open('', '_blank');
+            const today = new Date().toLocaleDateString('uk-UA');
+            
+            const html = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="UTF-8">
+                    <title>Звіт ПР №7 - ${state.name}</title>
+                    <style>
+                        body { font-family: 'Segoe UI', Arial, sans-serif; padding: 40px; color: #1e293b; line-height: 1.6; }
+                        .header { text-align: center; border-bottom: 3px double #0f172a; margin-bottom: 30px; padding-bottom: 15px; }
+                        .title { font-size: 22px; font-weight: bold; margin: 5px 0; text-transform: uppercase; }
+                        .subtitle { font-size: 16px; font-weight: normal; color: #475569; }
+                        .info-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+                        .info-table td { padding: 12px; border: 1px solid #cbd5e1; }
+                        .info-table td strong { color: #0f172a; }
+                        .section-title { font-size: 16px; font-weight: bold; border-bottom: 1px solid #94a3b8; margin: 25px 0 10px 0; padding-bottom: 5px; text-transform: uppercase; color: #1e293b; }
+                        .score-box { text-align: center; background: #f8fafc; padding: 25px; border-radius: 12px; border: 1px solid #e2e8f0; margin: 30px 0; }
+                        .grade { font-size: 64px; font-weight: 900; color: #b45309; margin: 10px 0; }
+                        .details-list { margin: 15px 0; padding-left: 20px; text-align: left; display: inline-block; }
+                        .footer { margin-top: 60px; display: flex; justify-content: space-between; }
+                        .sig { border-top: 1px solid #475569; width: 220px; text-align: center; padding-top: 8px; font-size: 14px; }
+                        @media print { .no-print { display: none; } }
+                        .btn-print { background: #0f172a; color: white; border: none; padding: 12px 24px; font-size: 16px; font-weight: bold; border-radius: 6px; cursor: pointer; transition: 0.2s; }
+                        .btn-print:hover { background: #1e293b; }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <div class="subtitle">Міністерство освіти і науки України</div>
+                        <div class="title">Звіт про виконання практичної роботи № 7</div>
+                        <div class="subtitle">Дисципліна: Хімія. Спеціальність: 131 Прикладна механіка</div>
+                    </div>
+                    
+                    <table class="info-table">
+                        <tr>
+                            <td><strong>Здобувач освіти:</strong></td>
+                            <td>${state.name}</td>
+                            <td><strong>Група:</strong></td>
+                            <td>${state.group}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Дата виконання:</strong></td>
+                            <td>${today}</td>
+                            <td><strong>Час виконання:</strong></td>
+                            <td>${state.timeSpent} (хв:сек)</td>
+                        </tr>
+                    </table>
+
+                    <div class="section-title">Тема практичного заняття</div>
+                    <p>Складання рівнянь реакцій для металів побічних підгруп. Розрахункові задачі.</p>
+
+                    <div class="score-box">
+                        <p style="margin:0; font-size: 14px; letter-spacing: 0.1em; font-weight: bold; color: #64748b;">ПІДСУМКОВА ОЦІНКА</p>
+                        <div class="grade">${state.finalGrade} / 12</div>
+                        <p style="margin:5px 0; font-size: 15px;">Набрано первинних балів: <strong>${state.score} з 69</strong></p>
+                        <div class="details-list">
+                            <div>• Бліц-опитування (теорія): ${state.details.quizCorrect} / 12 правильних</div>
+                            <div>• Ланцюги перетворень: ${state.details.chainsCorrect} / 2 виконано повністю</div>
+                            <div>• Хімічні рівняння: ${state.details.eqCorrect} / 4 завершено правильно</div>
+                            <div>• Технологічні розрахунки: ${state.details.probCorrect} / 2 задач розв'язано правильно</div>
+                        </div>
+                    </div>
+
+                    <div class="section-title">Протокол верифікації вмінь</div>
+                    <p style="font-size: 14px; color: #475569;">Даний звіт підтверджує успішну перевірку компетентностей щодо складання рівнянь окисно-відновних процесів за участю d-металів, розрахунку балансу легуючих добавок в феросплавах та стехіометричних розрахунків супутніх процесів травлення іржавих поверхонь.</p>
+
+                    <div class="footer">
+                        <div>
+                            <p>Оцінка викладача: ____________</p>
+                            <p style="font-size: 12px; color: #64748b;">Дата перевірки: ${today}</p>
+                        </div>
+                        <div class="sig">
+                            <p>Підпис викладача / керівника ПР</p>
+                        </div>
+                    </div>
+
+                    <p style="text-align:center; margin-top:50px;" class="no-print">
+                        <button class="btn-print" onclick="window.print()">Роздрукувати звіт у PDF</button>
+                    </p>
+                </body>
+                </html>
+            `;
+            
+            printWindow.document.write(html);
+            printWindow.document.close();
+        }
+    </script>
+</body>
+</html>
